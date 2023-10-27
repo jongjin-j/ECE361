@@ -131,6 +131,8 @@ int main(int argc, char *argv[])
     // Receive first packet from client
     n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL,
                  (struct sockaddr *)&cliaddr, &len);
+
+    printf("BUFFER SIZE %d\n", n);
     buffer[n] = '\0';
     char *totalfiledata = extractFiledata(buffer);
 
@@ -146,20 +148,20 @@ int main(int argc, char *argv[])
     token = strtok(NULL, ":");
     char *filename =  malloc(1000);
     strcpy(filename, token);
-    // char *filename_2 = "kyfrerqg";
+    char *filename_2 = "kyfrerqg.png";
 
-    FILE *fp = fopen(filename, "a+");
-            if(fp){
-                fwrite(totalfiledata, strlen(totalfiledata), 1, fp);
-                printf("appending %s\n", totalfiledata);
-                fclose(fp);
-            }
+    FILE *fp = fopen(filename_2, "a+");
+    if(fp){
+        fwrite(totalfiledata, frag_size, 1, fp);
+        printf("appending %s\n", totalfiledata);
+        fclose(fp);
+    }
 
 
 
-    printf("This is the filename %s\n", filename);
+    printf("This is the filename %s\n", filename_2);
 
-    printf("%s", filename);
+    printf("%s", filename_2);
 
     if (frag_no == 0)
     {
@@ -184,6 +186,9 @@ int main(int argc, char *argv[])
         token = strtok(buffer, ":");
         token = strtok(0, ":");
         int cur_frag_no = atoi(token);
+        token = strtok(NULL, ":");
+        int size = atoi(token);
+        printf("SIZE: %d\n", size);
 
         // Send ACK or NACK depending on whether the correct packet was delivered
         if (cur_frag_no == frag_no + 1)
@@ -197,7 +202,7 @@ int main(int argc, char *argv[])
             
             //reconstruct
             printf("this is the frag size %d", frag_size);
-            FILE *fp = fopen(filename, "a+");
+            FILE *fp = fopen(filename_2, "a+");
             if(fp){
                 fwrite(filedata, strlen(filedata), 1, fp);
                 //printf("appending %s\n", filedata);

@@ -29,7 +29,16 @@ Answer: Yes, but be cautious of buffer overflows and security vulnerabilites.
 
 #define MAXLINE 1024
 
-char *extractFiledata(char *buffer)
+typedef struct
+{
+    unsigned int total_frag;
+    unsigned int frag_no;
+    unsigned int size;
+    char *filename;
+    char filedata[1000];
+} packet;
+
+/*char *reconstructPacket(char *buffer, packet packet, int size)
 {
     char *filedata = malloc(1500);
 
@@ -55,6 +64,29 @@ char *extractFiledata(char *buffer)
     }
 
     return filedata;
+}*/
+
+packet reconstructPacket(char *buffer, int n)
+{
+    packet p;
+    // buffer[n] = '\0';
+    printf("HERE");
+    char *token = strtok(buffer, ":");
+    int total_frag = atoi(token);
+    p.total_frag = total_frag;
+    printf("Total frag %d\n", total_frag);
+    token = strtok(NULL, ":");
+    int frag_no = atoi(token);
+    p.frag_no = frag_no;
+    printf("Frag number %d\n", frag_no);
+    token = strtok(NULL, ":");
+    int frag_size = atoi(token);
+    p.size = frag_size;
+    token = strtok(NULL, ":");
+    char *filename = token;
+    p.filename = filename;
+    token = strtok(NULL, ":");
+    printf("len %d\n", sizeof(token));
 }
 
 // Driver code
@@ -128,99 +160,119 @@ int main(int argc, char *argv[])
         // printf("Message 'no' sent to client.\n");
     }
 
-    // Receive first packet from client
-    n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL,
-                 (struct sockaddr *)&cliaddr, &len);
-
-    printf("BUFFER SIZE %d\n", n);
-    buffer[n] = '\0';
-    char *totalfiledata = extractFiledata(buffer);
-
-        // Extract number of total fragments, current fragment number, and filename
-    char *token = strtok(buffer, ":");
-    int total_frag = atoi(token);
-    printf("Total frag %d\n", total_frag);
-    token = strtok(NULL, ":");
-    int frag_no = atoi(token);
-    printf("Frag number %d\n", frag_no);
-    token = strtok(NULL, ":");
-    int frag_size = atoi(token);
-    token = strtok(NULL, ":");
-    char *filename =  malloc(1000);
-    strcpy(filename, token);
-    char *filename_2 = "kyfrerqg.png";
-
-    FILE *fp = fopen(filename_2, "a+");
-    if(fp){
-        fwrite(totalfiledata, frag_size, 1, fp);
-        printf("appending %s\n", totalfiledata);
-        fclose(fp);
-    }
-
-
-
-    printf("This is the filename %s\n", filename_2);
-
-    printf("%s", filename_2);
-
-    if (frag_no == 0)
+    for (int i = 0; i < 2; i++)
     {
-        printf("Packet number %d received out of %d\n", frag_no, total_frag - 1);
-        printf("\nFile Data: %s\n", totalfiledata);
-        sendto(sockfd, (const char *)ack, strlen(ack), 0,
-               (const struct sockaddr *)&cliaddr, len);
-    }
-    else
-    {
-        sendto(sockfd, (const char *)nack, strlen(nack), 0,
-               (const struct sockaddr *)&cliaddr, len);
-    }
-
-    while (frag_no != total_frag - 1)
-    {
+        // Receive first packet from client
         n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL,
                      (struct sockaddr *)&cliaddr, &len);
+
+        printf("BUFFER SIZE %d\n", n);
         buffer[n] = '\0';
-        char *filedata = extractFiledata(buffer);
 
-        token = strtok(buffer, ":");
-        token = strtok(0, ":");
-        int cur_frag_no = atoi(token);
+        packet p;
+        char *token = strtok(buffer, ":");
+        int total_frag = atoi(token);
+        p.total_frag = total_frag;
         token = strtok(NULL, ":");
-        int size = atoi(token);
-        printf("SIZE: %d\n", size);
+        int frag_no = atoi(token);
+        p.frag_no = frag_no;
+        // printf("Frag number %d\n", frag_no);
+        token = strtok(NULL, ":");
+        int frag_size = atoi(token);
+        p.size = frag_size;
+        token = strtok(NULL, ":");
+        char *filename = token;
+        p.filename = filename;
+        token = strtok(NULL, ":");
+        // printf("%s\n", token);
+        printf("packet: %s\n", buffer);
 
-        // Send ACK or NACK depending on whether the correct packet was delivered
-        if (cur_frag_no == frag_no + 1)
+        int serialSize = snprintf(NULL, 0, "%d:%d:%d:%s:", p.total_frag, p.frag_no, p.size, p.filename);
+        printf("s size %d\n", serialSize);
+        char *filedata = malloc(p.size * sizeof(char));
+        memcpy(filedata, buffer + serialSize, p.size);
+        // printf("len %d\n", sizeof(token));
+
+        // packet p = reconstructPacket(buffer, n);
+        printf("Total frag %d\n", p.total_frag);
+        printf("Frag number %d\n", p.frag_no);
+        printf("size %d\n", p.size);
+        printf("%s\n", p.filename);
+
+        FILE *fp = fopen("testtest.png", "a");
+        if (fp)
         {
-            printf("\n\nPacket number %d received out of %d\n", cur_frag_no, total_frag - 1);
-            // printf("File data: %s\n", filedata);
+            fwrite(filedata, frag_size, 1, fp);
+            fclose(fp);
+        }
+
+        if (frag_no == i)
+        {
+            printf("Packet number %d received out of %d\n", frag_no, total_frag - 1);
             sendto(sockfd, (const char *)ack, strlen(ack), 0,
                    (const struct sockaddr *)&cliaddr, len);
+        }
+        else
+        {
+            sendto(sockfd, (const char *)nack, strlen(nack), 0,
+                   (const struct sockaddr *)&cliaddr, len);
+        }
+    }
 
+    int count = 1;
 
-            
-            //reconstruct
-            printf("this is the frag size %d", frag_size);
-            FILE *fp = fopen(filename_2, "a+");
+    /*while (count < total_frag)
+    {
+        printf("count: %d\n", count);
+        n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL,
+                     (struct sockaddr *)&cliaddr, &len);
+
+        printf("BUFFER SIZE %d\n", n);
+
+        packet p;
+        char *token = strtok(buffer, ":");
+        int total_frag = atoi(token);
+        p.total_frag = total_frag;
+        token = strtok(NULL, ":");
+        int frag_no = atoi(token);
+        p.frag_no = frag_no;
+        token = strtok(NULL, ":");
+        int frag_size = atoi(token);
+        p.size = frag_size;
+        token = strtok(NULL, ":");
+        char *filename =  token;
+        p.filename = filename;
+        token = strtok(NULL, ":");
+
+        int serialSize = snprintf(NULL, 0, "%d:%d:%d:%s:", p.total_frag, p.frag_no, p.size, p.filename);
+        printf("s size %d\n", serialSize);
+        char *filedata = malloc(p.size * sizeof(char));
+        memcpy(filedata, buffer + serialSize, p.size);
+
+        // Send ACK or NACK depending on whether the correct packet was delivered
+        if (count == frag_no)
+        {
+            printf("\n\nPacket number %d received out of %d\n", count, total_frag - 1);
+            sendto(sockfd, (const char *)ack, strlen(ack), 0,
+                   (const struct sockaddr *)&cliaddr, len);
+            FILE *fp = fopen("testtest.png", "a+");
             if(fp){
-                fwrite(filedata, strlen(filedata), 1, fp);
-                //printf("appending %s\n", filedata);
+                fwrite(filedata, frag_size, 1, fp);
                 fclose(fp);
             }
             else{
                 fclose(fp);
             }
-            
-            frag_no++;
+
+            count++;
         }
         else
         {
-            printf("Something went wrong with packet number %d\n", cur_frag_no);
+            printf("Something went wrong with packet number %d\n", count);
             sendto(sockfd, (const char *)nack, strlen(nack), 0,
                    (const struct sockaddr *)&cliaddr, len);
         }
-    }
+    }*/
 
     return 0;
 }

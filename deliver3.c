@@ -43,19 +43,22 @@ struct r_t
     int len;
 };
 
-size_t customstrlen(char* string) {
+size_t customstrlen(char *string)
+{
     size_t count = 0;
-    for (char ch = *string; ch != '\0'; ch = *++string) {
+    for (char ch = *string; ch != '\0'; ch = *++string)
+    {
         count++;
     }
 
     return count;
 }
 
-void append(uint8_t* s, uint8_t c) {
-        int len = customstrlen(s);
-        s[len] = c;
-        s[len+1] = '\0';
+void append(uint8_t *s, uint8_t c)
+{
+    int len = customstrlen(s);
+    s[len] = c;
+    s[len + 1] = '\0';
 };
 
 char *generatePacketStr(struct packet curPacket)
@@ -78,7 +81,7 @@ char *generatePacketStr(struct packet curPacket)
     memcpy(packetStr + customstrlen(packetStr), ":", 2);
     memcpy(packetStr + customstrlen(packetStr), curPacket.filedata, customstrlen(curPacket.filedata) + 1);
 
-    //printf("PCK STR: %s\n", packetStr);
+    // printf("PCK STR: %s\n", packetStr);
 
     return packetStr;
 }
@@ -214,11 +217,12 @@ int main(int argc, char *argv[])
     packet.total_frag = total_frag;
     packet.filename = file_name;
 
-    //FILE *fp = fopen("testtest.png", "a+");
+    FILE *fp = fopen("testtest.png", "a+");
 
-    for (int i = 0; i < total_frag; i++) {
+    for (int i = 0; i < total_frag; i++)
+    {
         r.len = fread(r.payload, 1, sizeof(r.payload), f);
-        
+
         packet.frag_no = i;
         packet.size = r.len;
         memcpy(packet.filedata, r.payload, r.len);
@@ -228,7 +232,7 @@ int main(int argc, char *argv[])
         sprintf(packetStr, "%d:%d:%d:%s:", packet.total_frag, packet.frag_no, packet.size, packet.filename);
         printf("%s\n", packet.filedata);
         memcpy(packetStr + serialSize, packet.filedata, packet.size);
-        //printf("%s\n", packetStr);
+        // printf("%s\n", packetStr);
 
         sendto(sockfd, (const char *)packetStr, r.len, MSG_CONFIRM,
                (const struct sockaddr *)&servaddr, sizeof(servaddr));
@@ -245,16 +249,17 @@ int main(int argc, char *argv[])
             printf("NACK Received.\n");
         }
 
-        //printf("%s\n", packetStr);
+        // printf("%s\n", packetStr);
         free(packetStr);
 
-        /*if(fp){
+        if (fp)
+        {
             fwrite(packet.filedata, r.len, 1, fp);
-        }*/
+        }
         // serialize with snprintf and send
     }
 
-    //fclose(fp);
+    // fclose(fp);
 
     fclose(f);
 
